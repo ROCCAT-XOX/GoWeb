@@ -135,12 +135,19 @@ func homeHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func main() {
+
+	Info("test")
+
 	fs := http.FileServer((http.Dir("assets")))
 	http.Handle("/assets/", http.StripPrefix("/assets", fs))
 
 	s := SideCarServer{}
 	ddos := ddosHandler{}
-	ddos.SetNext(&login_handler{})
+	internalPage := pageHandler{}
+	loginHandler := login_handler{}
+	loginHandler.SetNext(&internalPage)
+	ddos.SetNext(&loginHandler)
+
 	//router.HandleFunc("/", indexPageHandler)
 	/*router.HandleFunc("/internal", internalPageHandler)
 
@@ -157,40 +164,23 @@ func main() {
 
 }
 
-var ddosMap = make(map[string]string)
-
-type ddosHandler struct {
+//internal PageHandler
+type pageHandler struct {
 	next SideCarHandler
 }
 
 // validation check for satisfying interface
-var _ SideCarHandler = &ddosHandler{}
+var _ SideCarHandler = &pageHandler{}
 
-func (h *ddosHandler) SetNext(next SideCarHandler) SideCarHandler {
+func (h *pageHandler) SetNext(next SideCarHandler) SideCarHandler {
 	h.next = next
 	return next
 }
 
-func (h *ddosHandler) Handle(s *SideCarServer) http.Handler {
+func (h *pageHandler) Handle(s *SideCarServer) http.Handler {
 	return http.HandlerFunc(func(rw http.ResponseWriter, request *http.Request) {
-		name := request.FormValue("name")
-		fmt.Println(ddosMap[name])
-		if ddosMap[name] == "" {
-			h.next.Handle(s).ServeHTTP(rw, request)
-
-		} else {
-			rw.WriteHeader(401)
-			rw.Write([]byte("verpiss dich"))
-		}
+		tmpl.ExecuteTemplate(rw, "internalPage.html", nil)
 
 	})
 
-}
-
-type SideCarHandler interface {
-	Handle(s *SideCarServer) http.Handler
-	SetNext(SideCarHandler) SideCarHandler
-}
-
-type SideCarServer struct {
 }
